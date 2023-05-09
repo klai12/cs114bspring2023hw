@@ -622,21 +622,21 @@ class ScaledDotAttention(nn.Module):
         self.K = nn.Linear(hidden_size, hidden_size)
         self.V = nn.Linear(hidden_size, hidden_size)
         self.softmax = nn.Softmax(dim=2)
-        self.scaling_factor = torch.rsqrt(torch.tensor(self.hidden_size, dtype= torch.float))
+        self.scaling_factor = torch.rsqrt(torch.tensor(self.hidden_size, dtype= torch.float)) # 1 / sqrt(d)
 
     def forward(self, queries, keys, values):
         """The forward pass of the scaled dot attention mechanism.
 
         Arguments:
-            queries: The current decoder hidden state, 2D or 3D tensor. (batch_size x (k) x hidden_size)
-            keys: The encoder hidden states for each step of the input sequence. (batch_size x seq_len x hidden_size)
-            values: The encoder hidden states for each step of the input sequence. (batch_size x seq_len x hidden_size)
+            queries: The current decoder hidden state. (batch_size x decoder_seq_len x hidden_size)
+            keys: The encoder hidden states for each step of the input sequence. (batch_size x encoder_seq_len x hidden_size)
+            values: The encoder hidden states for each step of the input sequence. (batch_size x encoder_seq_len x hidden_size)
 
         Returns:
-            context: weighted average of the values (batch_size x k x hidden_size)
-            attention_weights: Normalized attention weights for each encoder hidden state. (batch_size x seq_len x 1)
+            context: weighted average of the values (batch_size x decoder_seq_len x hidden_size)
+            attention_weights: Normalized attention weights for each encoder hidden state. (batch_size x decoder_seq_len x encoder_seq_len)
 
-            The output must be a softmax weighting over the seq_len annotations.
+            The output must be a softmax weighting over the encoder_seq_len annotations.
         """
 
         # ------------
@@ -664,19 +664,19 @@ class CausalScaledDotAttention(nn.Module):
         self.K = nn.Linear(hidden_size, hidden_size)
         self.V = nn.Linear(hidden_size, hidden_size)
         self.softmax = nn.Softmax(dim=2)
-        self.scaling_factor = torch.rsqrt(torch.tensor(self.hidden_size, dtype= torch.float))
+        self.scaling_factor = torch.rsqrt(torch.tensor(self.hidden_size, dtype= torch.float)) # 1 / sqrt(d)
 
     def forward(self, queries, keys, values):
-        """The forward pass of the scaled dot attention mechanism.
+        """The forward pass of the causal scaled dot attention mechanism.
 
         Arguments:
-            queries: The current decoder hidden state, 2D or 3D tensor. (batch_size x (k) x hidden_size)
+            queries: The current decoder hidden state. (batch_size x seq_len x hidden_size)
             keys: The encoder hidden states for each step of the input sequence. (batch_size x seq_len x hidden_size)
             values: The encoder hidden states for each step of the input sequence. (batch_size x seq_len x hidden_size)
 
         Returns:
-            context: weighted average of the values (batch_size x k x hidden_size)
-            attention_weights: Normalized attention weights for each encoder hidden state. (batch_size x seq_len x 1)
+            context: weighted average of the values (batch_size x seq_len x hidden_size)
+            attention_weights: Normalized attention weights for each encoder hidden state. (batch_size x seq_len x seq_len)
 
             The output must be a softmax weighting over the seq_len annotations.
         """
@@ -721,15 +721,15 @@ class TransformerDecoder(nn.Module):
         Arguments:
             inputs: Input token indexes across a batch for all the time step. (batch_size x decoder_seq_len)
             annotations: The encoder hidden states for each step of the input.
-                         sequence. (batch_size x seq_len x hidden_size)
+                         sequence. (batch_size x encoder_seq_len x hidden_size)
             hidden_init: Not used in the transformer decoder
         Returns:
             output: Un-normalized scores for each token in the vocabulary, across a batch for all the decoding time steps. (batch_size x decoder_seq_len x vocab_size)
-            attentions: The stacked attention weights applied to the encoder annotations (batch_size x encoder_seq_len x decoder_seq_len)
+            attentions: The stacked attention weights applied to the encoder annotations (batch_size x decoder_seq_len x encoder_seq_len)
         """
         
         batch_size, seq_len = inputs.size()
-        embed = self.embedding(inputs)  # batch_size x seq_len x hidden_size        
+        embed = self.embedding(inputs)  # batch_size x decoder_seq_len x hidden_size        
 
         encoder_attention_weights_list = []
         self_attention_weights_list = []
